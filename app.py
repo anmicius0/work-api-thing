@@ -21,17 +21,17 @@ HEADERS = {"content-type": "application/x-www-form-urlencoded"}
 XOQL_QUERY_TEMPLATE = """
     select name K大預約表編號, customItem3__c.accountName 公司名稱, customItem2__c 預約K大日期, customItem23__c.name 講解人, customItem17__c 會議室鏈接, customItem140__c K大顧問會議室連結v, customItem118__c 房間ID, customItem123__c 會議錄影連結
     from customEntity23__c
-    where name = '{order_num}'
+    where {condition}
 """
 
 # Configure logging
-logging.basicConfig(level=logging.DEBUG)  # Changed to DEBUG for detailed logs
+logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 # Global variables for token caching
 cached_token = None
 token_expiry = 0
-TOKEN_TTL = 3600  # Token Time-to-Live in seconds
+TOKEN_TTL = 3600
 
 
 async def fetch_token(client):
@@ -97,8 +97,8 @@ async def index():
     return await render_template("index.html")
 
 
-@app.route("/order", methods=["POST"])
-async def order():
+@app.route("/test-speaker", methods=["POST"])
+async def testSpeaker():
     """Handle order request and fetch related data."""
     token = await get_token()
     if not token:
@@ -107,59 +107,91 @@ async def order():
             500,
         )
 
-    order_num = (await request.json).get("order")
-    if not order_num:
-        return jsonify({"success": False, "error": "Missing order number"}), 400
-
-    query = XOQL_QUERY_TEMPLATE.format(order_num=order_num)
+    query = XOQL_QUERY_TEMPLATE.format(condition="customItem23__c.name = '陳泓愷'")
     data = {"xoql": query, "batchCount": 2000, "queryLocator": ""}
     headers = {"Authorization": f"Bearer {token}", **HEADERS}
 
     async with httpx.AsyncClient() as client:
         try:
-            # Fetch order data
             response = await client.post(DATA_URL, headers=headers, data=data)
             response.raise_for_status()
-            data = response.json()
-            records = data["data"]["records"]
-            if not records:
-                return jsonify({"success": False, "error": "No records found"}), 404
-
-            record = records[0]
-            record["預約K大日期"] = stamp(int(record["預約K大日期"]))
-
-            # Fetch room data
-            room_url = f"{ROOM_URL}{record['房間ID']}"
-            response = await client.get(room_url)
-            response.raise_for_status()
-            room_data = response.json()
-
-            mem = {
-                "teachers": process_participants(room_data["data"].get("teachers", [])),
-                "students": process_participants(room_data["data"].get("students", [])),
-                "records": [
-                    {
-                        "url": rec["recordDetails"][0]["url"],
-                        "record_start_time": stamp(rec["startTime"]),
-                        "record_end_time": stamp(rec["endTime"]),
-                    }
-                    for rec in room_data["data"].get("records", [])
-                ],
+            unique_speakers = {
+                record["講解人"] for record in response.json()["data"]["records"]
             }
-
-            return jsonify({"success": True, "info": [record], "mem": mem})
+            return jsonify(list(unique_speakers))
         except httpx.RequestError as e:
             logger.error(f"Failed to retrieve data: {e}")
             return jsonify({"success": False, "error": "Failed to retrieve data"}), 500
 
 
-@app.route("/data", methods=["POST"])
-async def data():
-    """Handle test data request."""
-    data = await request.json
-    logger.debug(f"Received data: {data}")
-    return jsonify({"success": True})
+@app.route("/someone", methods=["POST"])
+async def someone():
+    """Handle someone request."""
+    token = await get_token()
+    if not token:
+        return (
+            jsonify({"success": False, "error": "Failed to retrieve access token"}),
+            500,
+        )
+
+    data = await request.get_json()
+    someone = data.get("name")
+    query = XOQL_QUERY_TEMPLATE.format(condition=f"customItem23__c.name = '{someone}'")
+    data = {"xoql": query, "batchCount": 2000, "queryLocator": ""}
+    headers = {"Authorization": f"Bearer {token}", **HEADERS}
+
+    async with httpx.AsyncClient() as client:
+        try:
+            response = await client.post(DATA_URL, headers=headers, data=data)
+            response.raise_for_status()
+            raw_data = response.json()
+            return jsonify(raw_data)
+        except httpx.RequestError as e:
+            logger.error(f"Failed to retrieve data: {e}")
+            return jsonify({"success": False, "error": "Failed to retrieve data"}), 500
+
+
+@app.route("/someroom", methods=["POST"])
+async def someroom():
+    """Handle someroom request."""
+    data = await request.get_json()
+    someroom = data.get("roomID")
+
+    async with httpx.AsyncClient() as client:
+        try:
+            room_url = f"{ROOM_URL}{someroom}"
+            response = await client.get(room_url)
+            response.raise_for_status()
+            room_data = response.json()
+
+            return jsonify(
+                {
+                    "teachers": process_participants(
+                        room_data["data"].get("teachers", [])
+                    ),
+                    "students": process_participants(
+                        room_data["data"].get("students", [])
+                    ),
+                    "records": [
+                        {
+                            "url": (
+                                rec["recordDetails"][0]["url"]
+                                if rec.get("recordDetails")
+                                else None
+                            ),
+                            "start_time": (
+                                rec["startTime"] if rec.get("startTime") else None
+                            ),
+                            "end_time": rec["endTime"] if rec.get("endTime") else None,
+                        }
+                        for rec in room_data["data"].get("records", [])
+                    ],
+                }
+            )
+        except httpx.RequestError as e:
+            logger.error(f"Failed to retrieve data: {e}")
+            return jsonify({"success": False, "error": "Failed to retrieve data"}), 500
 
 
 if __name__ == "__main__":
-    app.run(port=5050, debug=True)  # Enable debug mode
+    app.run(port=5050, debug=True)

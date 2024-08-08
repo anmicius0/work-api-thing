@@ -78,31 +78,10 @@
     </header>
 
     <main class="container mx-auto p-6">
-      <section class="mb-6 bg-white p-6 rounded-lg shadow-lg">
-        <form id="orderapi" method="post">
-          <div id="redeem" class="mb-6">
-            <label
-              for="ordernum"
-              class="block text-gray-700 text-lg font-semibold mb-2"
-              >單號</label
-            >
-            <input
-              id="ordernum"
-              type="text"
-              class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-500 mb-4"
-              placeholder="請填寫單號"
-            />
-            <button
-              type="button"
-              class="btn-primary px-5 py-3 rounded-lg"
-              id="btn1"
-              onclick="sub()"
-            >
-              送出
-            </button>
-          </div>
-        </form>
-      </section>
+      <section
+        class="mb-6 bg-white p-6 rounded-lg shadow-lg"
+        id="speakerButtonContainer"
+      ></section>
 
       <section class="mb-6 bg-white p-6 rounded-lg shadow-lg" id="record">
         <h2 class="text-2xl font-semibold mb-4 text-gray-800">預約記錄</h2>
@@ -180,52 +159,115 @@
     </main>
 
     <script>
-      async function sub() {
-        const orderNo = document.getElementById("ordernum").value;
-        const btn = document.getElementById("btn1");
-        btn.disabled = true;
+      // Helper function to create table rows
+      function createTableRow(tableId, data, columns) {
+        const tableBody = document.getElementById(tableId);
+        tableBody.innerHTML = "";
 
+        Object.entries(data).forEach(([key, value]) => {
+          const newRow = tableBody.insertRow();
+          newRow.className = "hover-effect";
+          columns.forEach((column) => {
+            const cell = newRow.insertCell();
+            cell.className = "border p-3";
+            cell.textContent = column(key, value) || "N/A";
+          });
+        });
+      }
+
+      // Load speaker list
+      window.addEventListener("DOMContentLoaded", async () => {
+        const response = await fetch("/test-speaker", { method: "POST" });
+        const data = await response.json();
+
+        const speakerButtonContainer = document.getElementById(
+          "speakerButtonContainer"
+        );
+        data.forEach((speaker) => {
+          const button = document.createElement("button");
+          button.type = "button";
+          button.className = "btn-primary px-5 py-3 rounded-lg";
+          button.innerText = speaker;
+          button.addEventListener("click", () => sendSpeakerName(speaker));
+          speakerButtonContainer.appendChild(button);
+        });
+      });
+
+      // Find all classes by someone
+      async function sendSpeakerName(speakerName) {
         try {
-          const response = await fetch("/order", {
+          const response = await fetch("/someone", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ order: orderNo }),
+            body: JSON.stringify({ name: speakerName }),
           });
-          const data = await response.json();
-
-          if (data.success) {
-            if (data.info) {
-              populateTable(
-                data.info[0],
-                document.querySelector("#datatable"),
-                1
-              );
-              populateTable(
-                data.mem.teachers,
-                document.querySelector("#teatable"),
-                2
-              );
-              populateTable(
-                data.mem.students,
-                document.querySelector("#stutable"),
-                2
-              );
-              populateTable(
-                data.mem.records,
-                document.querySelector("#retable"),
-                3
-              );
-              updateTimezone();
-            }
-          } else {
-            alert(`資料提交失敗: ${data.status || "未知錯誤"}`);
-          }
+          const result = await response.json();
+          populateClassTable(result);
         } catch (error) {
-          console.error("Error:", error);
-          alert("資料提交失敗");
-        } finally {
-          btn.disabled = false;
+          console.error("Error sending speaker name:", error);
         }
+      }
+
+      function populateClassTable(data) {
+        createTableRow("datatable", data.data.records, [
+          (key, row) => row["K大預約表編號"],
+          (key, row) => getHostname(row["K大顧問會議室連結v"]),
+          (key, row) => row["公司名稱"],
+          (key, row) => row["房間ID"],
+          (key, row) => getHostname(row["會議室鏈接"]),
+          (key, row) => getHostname(row["會議錄影連結"]),
+          (key, row) => row["講解人"],
+          (key, row) => new Date(parseInt(row["預約K大日期"])).toLocaleString(),
+        ]);
+
+        // Add event listeners for row clicks
+        const rows = document.querySelectorAll("#datatable tr");
+        rows.forEach((row) => {
+          row.addEventListener("click", () => {
+            const roomId = row.cells[3].textContent; // Assuming room ID is in the 4th column
+            sendRoomID(roomId);
+          });
+        });
+      }
+
+      async function sendRoomID(roomID) {
+        try {
+          const response = await fetch("/someroom", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ roomID: roomID }),
+          });
+          const result = await response.json();
+          addTeacherTable(result.teachers);
+          addStudentTable(result.students);
+          addRecordTable(result.records);
+        } catch (error) {
+          console.error("Error sending room ID:", error);
+        }
+      }
+
+      function addTeacherTable(data) {
+        createTableRow("teatable", data, [
+          (key, value) => key,
+          (key, value) => value?.online_time,
+          (key, value) => value?.offline_time,
+        ]);
+      }
+
+      function addStudentTable(data) {
+        createTableRow("stutable", data, [
+          (key, value) => key,
+          (key, value) => value?.online_time,
+          (key, value) => value?.offline_time,
+        ]);
+      }
+
+      function addRecordTable(data) {
+        createTableRow("retable", data, [
+          (key, row) => row.url,
+          (key, row) => new Date(row.start_time).toLocaleString(),
+          (key, row) => new Date(row.end_time).toLocaleString(),
+        ]);
       }
 
       function getHostname(url) {
@@ -236,57 +278,6 @@
         }
       }
 
-      function populateTable(data, table, type) {
-        table.innerHTML = "";
-        if (type === 1) {
-          table.innerHTML += `
-        <tr class="hover-effect">
-          <td class="border p-3">${data.K大預約表編號}</td>
-          <td class="border p-3"><a href="${
-            data.K大顧問會議室連結v
-          }" target="_blank" class="text-gray-700 hover:underline"><i class="fas fa-link icon-link"></i>${getHostname(
-            data.K大顧問會議室連結v
-          )}</a></td>
-          <td class="border p-3">${data.公司名稱}</td>
-          <td class="border p-3">${data.房間ID}</td>
-          <td class="border p-3"><a href="${
-            data.會議室鏈接
-          }" target="_blank" class="text-gray-700 hover:underline"><i class="fas fa-link icon-link"></i>${getHostname(
-            data.會議室鏈接
-          )}</a></td>
-          <td class="border p-3">${data.會議錄影連結}</td>
-          <td class="border p-3">${data.講解人}</td>
-          <td class="border p-3">${convertTime(data.預約K大日期)}</td>
-        </tr>`;
-        } else {
-          Object.entries(data).forEach(([key, item]) => {
-            if (type === 2) {
-              table.innerHTML += `
-            <tr class="hover-effect">
-              <td class="border p-3">${key}</td>
-              <td class="border p-3">${convertTime(item.online_time)}</td>
-              <td class="border p-3">${convertTime(item.offline_time)}</td>
-            </tr>`;
-            } else if (type === 3) {
-              table.innerHTML += `
-            <tr class="hover-effect">
-              <td class="border p-3"><a href="${
-                item.url
-              }" target="_blank" class="text-gray-700 hover:underline"><i class="fas fa-link icon-link"></i>${getHostname(
-                item.url
-              )}</a></td>
-              <td class="border p-3">${convertTime(item.record_start_time)}</td>
-              <td class="border p-3">${convertTime(item.record_end_time)}</td>
-            </tr>`;
-            }
-          });
-        }
-      }
-
-      function convertTime(timeString) {
-        return timeString.substring(0, 16);
-      }
-
       function updateTimezone() {
         const timezoneInfo = document.getElementById("timezone-info");
         timezoneInfo.textContent = `Your local time zone is ${
@@ -294,7 +285,7 @@
         }`;
       }
 
-      updateTimezone(); // Initial call to update timezone info on page load
+      updateTimezone();
     </script>
   </body>
 </html>
