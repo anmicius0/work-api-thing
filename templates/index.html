@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>sys-score</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css"
+    />
+    <style>
+      @font-face {
+        font-family: "Misans TC";
+        src: url("static/Misans TC VF.ttf") format("truetype");
+      }
+
+      body {
+        font-family: "Misans TC", sans-serif;
+      }
+
+      table th,
+      table td {
+        word-wrap: break-word;
+        white-space: normal;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .hover-effect:hover {
+        background-color: #f0f0f0;
+        transition: background-color 0.3s;
+      }
+
+      .btn-primary {
+        background-color: #333;
+        color: #fff;
+        transition: background-color 0.3s, transform 0.2s;
+      }
+
+      .btn-primary:hover {
+        background-color: #555;
+        transform: scale(1.05);
+      }
+
+      .btn-primary:focus {
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.5);
+      }
+
+      .header-link {
+        color: #fff;
+        transition: color 0.3s;
+      }
+
+      .header-link:hover {
+        color: #ddd;
+      }
+
+      .icon-link {
+        color: #333;
+        margin-right: 8px;
+      }
+
+      .icon-link:hover {
+        color: #555;
+      }
+    </style>
+  </head>
+
+  <body class="bg-gray-100 text-gray-900">
+    <header class="bg-gray-800 p-6 shadow-lg">
+      <nav class="container mx-auto">
+        <a href="/" class="header-link text-lg font-semibold hover:underline"
+          >首頁</a
+        >
+      </nav>
+    </header>
+
+    <main class="container mx-auto p-6">
+      <section class="mb-6 bg-white p-6 rounded-lg shadow-lg">
+        <form id="orderapi" method="post">
+          <div id="redeem" class="mb-6">
+            <label
+              for="ordernum"
+              class="block text-gray-700 text-lg font-semibold mb-2"
+              >單號</label
+            >
+            <input
+              id="ordernum"
+              type="text"
+              class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-500 mb-4"
+              placeholder="請填寫單號"
+            />
+            <button
+              type="button"
+              class="btn-primary px-5 py-3 rounded-lg"
+              id="btn1"
+              onclick="sub()"
+            >
+              送出
+            </button>
+          </div>
+        </form>
+      </section>
+
+      <section class="mb-6 bg-white p-6 rounded-lg shadow-lg" id="record">
+        <h2 class="text-2xl font-semibold mb-4 text-gray-800">預約記錄</h2>
+        <table class="w-full border-collapse rounded-lg overflow-hidden">
+          <thead>
+            <tr class="bg-gray-200 text-gray-800">
+              <th class="border p-3">K大預約表編號</th>
+              <th class="border p-3">K大顧問會議室連結</th>
+              <th class="border p-3">公司名稱</th>
+              <th class="border p-3">房間ID</th>
+              <th class="border p-3">會議室鏈接</th>
+              <th class="border p-3">會議錄影連結</th>
+              <th class="border p-3">講解人</th>
+              <th class="border p-3">預約K大日期</th>
+            </tr>
+          </thead>
+          <tbody id="datatable" class="text-gray-800">
+            <!-- Data will be populated here -->
+          </tbody>
+        </table>
+      </section>
+
+      <section class="mb-6 bg-white p-6 rounded-lg shadow-lg" id="mem_teacher">
+        <h2 class="text-2xl font-semibold mb-4 text-gray-800">教師記錄</h2>
+        <table class="w-full border-collapse rounded-lg overflow-hidden">
+          <thead>
+            <tr class="bg-gray-200 text-gray-800">
+              <th class="border p-3">Teacher Name</th>
+              <th class="border p-3">Online Time</th>
+              <th class="border p-3">Offline Time</th>
+            </tr>
+          </thead>
+          <tbody id="teatable" class="text-gray-800">
+            <!-- Data will be populated here -->
+          </tbody>
+        </table>
+      </section>
+
+      <section class="mb-6 bg-white p-6 rounded-lg shadow-lg" id="mem_student">
+        <h2 class="text-2xl font-semibold mb-4 text-gray-800">學生記錄</h2>
+        <table class="w-full border-collapse rounded-lg overflow-hidden">
+          <thead>
+            <tr class="bg-gray-200 text-gray-800">
+              <th class="border p-3">Student Name</th>
+              <th class="border p-3">Online Time</th>
+              <th class="border p-3">Offline Time</th>
+            </tr>
+          </thead>
+          <tbody id="stutable" class="text-gray-800">
+            <!-- Data will be populated here -->
+          </tbody>
+        </table>
+      </section>
+
+      <section class="mb-6 bg-white p-6 rounded-lg shadow-lg" id="mem_record">
+        <h2 class="text-2xl font-semibold mb-4 text-gray-800">錄影記錄</h2>
+        <table class="w-full border-collapse rounded-lg overflow-hidden">
+          <thead>
+            <tr class="bg-gray-200 text-gray-800">
+              <th class="border p-3">URL</th>
+              <th class="border p-3">Record Start Time</th>
+              <th class="border p-3">Record End Time</th>
+            </tr>
+          </thead>
+          <tbody id="retable" class="text-gray-800">
+            <!-- Data will be populated here -->
+          </tbody>
+        </table>
+      </section>
+
+      <section class="bg-white p-6 rounded-lg shadow-lg" id="timezone">
+        <h2 class="text-2xl font-semibold mb-4 text-gray-800">Time Zone</h2>
+        <p id="timezone-info" class="text-gray-700"></p>
+      </section>
+    </main>
+
+    <script>
+      async function sub() {
+        const orderNo = document.getElementById("ordernum").value;
+        const btn = document.getElementById("btn1");
+        btn.disabled = true;
+
+        try {
+          const response = await fetch("/order", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ order: orderNo }),
+          });
+          const data = await response.json();
+
+          if (data.success) {
+            if (data.info) {
+              populateTable(
+                data.info[0],
+                document.querySelector("#datatable"),
+                1
+              );
+              populateTable(
+                data.mem.teachers,
+                document.querySelector("#teatable"),
+                2
+              );
+              populateTable(
+                data.mem.students,
+                document.querySelector("#stutable"),
+                2
+              );
+              populateTable(
+                data.mem.records,
+                document.querySelector("#retable"),
+                3
+              );
+              updateTimezone();
+            }
+          } else {
+            alert(`資料提交失敗: ${data.status || "未知錯誤"}`);
+          }
+        } catch (error) {
+          console.error("Error:", error);
+          alert("資料提交失敗");
+        } finally {
+          btn.disabled = false;
+        }
+      }
+
+      function getHostname(url) {
+        try {
+          return new URL(url).hostname;
+        } catch {
+          return url;
+        }
+      }
+
+      function populateTable(data, table, type) {
+        table.innerHTML = "";
+        if (type === 1) {
+          table.innerHTML += `
+        <tr class="hover-effect">
+          <td class="border p-3">${data.K大預約表編號}</td>
+          <td class="border p-3"><a href="${
+            data.K大顧問會議室連結v
+          }" target="_blank" class="text-gray-700 hover:underline"><i class="fas fa-link icon-link"></i>${getHostname(
+            data.K大顧問會議室連結v
+          )}</a></td>
+          <td class="border p-3">${data.公司名稱}</td>
+          <td class="border p-3">${data.房間ID}</td>
+          <td class="border p-3"><a href="${
+            data.會議室鏈接
+          }" target="_blank" class="text-gray-700 hover:underline"><i class="fas fa-link icon-link"></i>${getHostname(
+            data.會議室鏈接
+          )}</a></td>
+          <td class="border p-3">${data.會議錄影連結}</td>
+          <td class="border p-3">${data.講解人}</td>
+          <td class="border p-3">${convertTime(data.預約K大日期)}</td>
+        </tr>`;
+        } else {
+          Object.entries(data).forEach(([key, item]) => {
+            if (type === 2) {
+              table.innerHTML += `
+            <tr class="hover-effect">
+              <td class="border p-3">${key}</td>
+              <td class="border p-3">${convertTime(item.online_time)}</td>
+              <td class="border p-3">${convertTime(item.offline_time)}</td>
+            </tr>`;
+            } else if (type === 3) {
+              table.innerHTML += `
+            <tr class="hover-effect">
+              <td class="border p-3"><a href="${
+                item.url
+              }" target="_blank" class="text-gray-700 hover:underline"><i class="fas fa-link icon-link"></i>${getHostname(
+                item.url
+              )}</a></td>
+              <td class="border p-3">${convertTime(item.record_start_time)}</td>
+              <td class="border p-3">${convertTime(item.record_end_time)}</td>
+            </tr>`;
+            }
+          });
+        }
+      }
+
+      function convertTime(timeString) {
+        return timeString.substring(0, 16);
+      }
+
+      function updateTimezone() {
+        const timezoneInfo = document.getElementById("timezone-info");
+        timezoneInfo.textContent = `Your local time zone is ${
+          Intl.DateTimeFormat().resolvedOptions().timeZone
+        }`;
+      }
+
+      updateTimezone(); // Initial call to update timezone info on page load
+    </script>
+  </body>
+</html>
